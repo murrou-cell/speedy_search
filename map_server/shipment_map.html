@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Shipment Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        #map { height: 80vh; }
+        #config { padding: 10px; background: #f4f4f4; }
+    </style>
+</head>
+<body>
+    <div id="config">
+        <label for="token">Token:</label>
+        <input type="text" id="token" placeholder="Enter token" required>
+        <label for="barcode">Barcode:</label>
+        <input type="text" id="barcode" placeholder="Enter barcode" required>
+        <button id="submitConfig">Submit</button>
+    </div>
+    <div id="map"></div>
+    <script>
+        const map = L.map('map').setView([0, 0], 15); // Initial view
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        let marker = null;
+        let ws;
+
+        document.getElementById('submitConfig').addEventListener('click', () => {
+            const token = document.getElementById('token').value;
+            const barcode = document.getElementById('barcode').value;
+
+            if (!token || !barcode) {
+                alert('Please fill in all fields!');
+                return;
+            }
+
+            // Send config to the server
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ token, barcode }));
+                alert('Configuration updated!');
+            } else {
+                alert('WebSocket connection is not active.');
+            }
+        });
+
+        ws = new WebSocket('ws://localhost:8765');
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const lat = data.lat;
+            const lng = data.lng;
+
+            // Update map view and marker
+            map.setView([lat, lng], 15);
+            if (marker) {
+                marker.setLatLng([lat, lng]);
+            } else {
+                marker = L.marker([lat, lng]).addTo(map);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket connection closed.");
+        };
+    </script>
+</body>
+</html>
